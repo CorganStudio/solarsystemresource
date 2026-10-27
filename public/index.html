@@ -644,8 +644,8 @@ var LAYERS = [
 
   // Advanced (researcher locked)
   { id: 'kuiper',      title: 'Kuiper Belt',    category: 'Advanced', source: 'jpl', desc: 'Trans-Neptunian disc (~30-55 AU)', visible: true, proLock: true },
-  { id: 'oort',        title: 'Oort Cloud',     category: 'Advanced', source: 'jpl', desc: 'Theoretical comet reservoir',      visible: false, proLock: true },
-  { id: 'heliosphere', title: 'Heliosphere',    category: 'Advanced', source: 'nasa', desc: 'Solar wind / interstellar boundary', visible: false, proLock: true },
+  { id: 'oort',        title: 'Oort Cloud',     category: 'Advanced', source: 'jpl', desc: 'Theoretical comet reservoir. Illustrative sphere; real extent about 2,000-100,000 AU', visible: false, proLock: true },
+  { id: 'heliosphere', title: 'Heliosphere',    category: 'Advanced', source: 'nasa', desc: 'Solar wind / interstellar boundary. Illustrative sphere; Voyager 1 crossed the heliopause at 121.6 AU, Voyager 2 at 119.0 AU', visible: false, proLock: true },
 
   // Infrastructure
   { id: 'lagrange',    title: 'Lagrange Points',  category: 'Infrastructure', source: 'nasa', desc: 'Earth-Sun L1-L5 equilibrium regions', visible: false }
@@ -895,13 +895,17 @@ function initSolarSystem() {
     }
   }
 
-  // Earth J2000 Keplerian elements in degrees (for Lagrange point derivation)
+  // Earth (EM barycenter) J2000 Keplerian elements in degrees (for Lagrange point derivation).
+  // Standish, JPL "Keplerian Elements for Approximate Positions of the Major Planets", Table 1
+  // (https://ssd.jpl.nasa.gov/planets/approx_pos.html): a 1.00000261, e 0.01671123,
+  // I -0.00001531, L 100.46457166, long.peri 102.93768193, long.node 0.0.
+  // w = long.peri - long.node; ma = L - long.peri = -2.47311027 (normalized to 0-360).
   var EARTH_J2000 = {
     epoch: 2451545.0,
     a: 1.00000261, e: 0.01671123,
-    i: 0.00001531,
-    om: -11.26064, w: 102.94719,
-    ma: 100.46435
+    i: -0.00001531,
+    om: 0.0, w: 102.93768193,
+    ma: 357.52688973
   };
   // Jupiter J2000 (for Trojans)
   var JUPITER_J2000 = {
@@ -912,15 +916,16 @@ function initSolarSystem() {
 
   // ── LAYER BUILDER: dwarf planets ──
   // Pluto preset exists in spacekit; Ceres/Eris/Haumea/Makemake need custom ephem.
-  // Keplerian elements from JPL SSD small body database at J2000 epoch (JD 2451545.0).
+  // Osculating elements from JPL SBDB API, each with its own epoch JD
+  // (https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=<id>&full-prec=true, fetched 2026-10-26).
   layerBuilders['dwarfs'] = function() {
     var out = [];
     var dwarfs = [
       { id: 'pluto', preset: 'PLUTO', label: 'Pluto' },
-      { id: 'ceres',    label: 'Ceres',    ephem: { a: 2.7691652, e: 0.0760091, i: 10.593,  om: 80.3055,  w: 73.597,  ma: 77.372 } },
-      { id: 'eris',     label: 'Eris',     ephem: { a: 67.864,   e: 0.4338,    i: 44.04,   om: 36.11,    w: 151.14,  ma: 204.16 } },
-      { id: 'haumea',   label: 'Haumea',   ephem: { a: 43.34,    e: 0.191,     i: 28.19,   om: 121.79,   w: 239.184, ma: 209.07 } },
-      { id: 'makemake', label: 'Makemake', ephem: { a: 45.79,    e: 0.159,     i: 29.00,   om: 79.36,    w: 298.41,  ma: 165.51 } }
+      { id: 'ceres',    label: 'Ceres',    ephem: { epoch: 2461200.5, a: 2.7655526, e: 0.0796923, i: 10.5880278, om: 80.24862682, w: 73.29421453, ma: 274.41934638 } },  // SBDB sstr=1
+      { id: 'eris',     label: 'Eris',     ephem: { epoch: 2461200.5, a: 67.93394688, e: 0.43823853, i: 43.92582795, om: 36.00477044, w: 150.79492358, ma: 211.77443428 } },  // SBDB sstr=136199
+      { id: 'haumea',   label: 'Haumea',   ephem: { epoch: 2461200.5, a: 43.06029024, e: 0.19444301, i: 28.20847393, om: 121.78605613, w: 240.69054725, ma: 223.21041188 } },  // SBDB sstr=136108
+      { id: 'makemake', label: 'Makemake', ephem: { epoch: 2461200.5, a: 45.57093317, e: 0.158889, i: 29.02785604, om: 79.29483382, w: 297.09227334, ma: 169.9379962 } }  // SBDB sstr=136472
     ];
     for (var i = 0; i < dwarfs.length; i++) {
       var d = dwarfs[i];
@@ -1087,18 +1092,19 @@ function initSolarSystem() {
 
   // ── LAYER BUILDER: comets (named comets with real Keplerian elements) ──
   // Each comet is a proper SpaceObject so it gets a visible orbit trace.
-  // Elements from JPL SSD at or near J2000 epoch.
+  // Osculating elements from JPL SBDB API, each with its own epoch JD
+  // (https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=<designation>&full-prec=true, fetched 2026-10-26).
   var NAMED_COMETS = [
     { id: '1p-halley',   label: '1P/Halley',
-      a: 17.834144, e: 0.9671429, i: 162.2625,  om: 58.42008, w: 111.33249, ma: 38.384, color: 0x88ddff },
+      epoch: 2439875.5, a: 17.92863505, e: 0.967936, i: 162.19053004, om: 59.09894721, w: 112.24143146, ma: 274.38233714, color: 0x88ddff },  // SBDB sstr=1P
     { id: '2p-encke',    label: '2P/Encke',
-      a: 2.21516,   e: 0.8483,    i: 11.7812,   om: 334.5685, w: 186.5437,  ma: 100.0,  color: 0xaaeecc },
+      epoch: 2460462.5, a: 2.21847076, e: 0.84695341, i: 11.3376953, om: 334.01543615, w: 187.28626941, ma: 66.35855773, color: 0xaaeecc },  // SBDB sstr=2P
     { id: '67p-cg',      label: '67P/Churyumov-Gerasimenko',
-      a: 3.462854,  e: 0.640618,  i: 7.0464,    om: 50.1459,  w: 12.7803,   ma: 280.0,  color: 0xcceeff },
+      epoch: 2457305.5, a: 3.46224949, e: 0.64090813, i: 7.04029494, om: 50.13557377, w: 12.7982497, ma: 8.85992743, color: 0xcceeff },  // SBDB sstr=67P
     { id: '103p-hartley',label: '103P/Hartley 2',
-      a: 3.47,      e: 0.6938,    i: 13.623,    om: 219.75,   w: 181.20,    ma: 150.0,  color: 0x99ccff },
+      epoch: 2457152.5, a: 3.47565249, e: 0.69359786, i: 13.59946797, om: 219.74217433, w: 181.32184384, ma: 251.78217273, color: 0x99ccff },  // SBDB sstr=103P
     { id: '9p-tempel',   label: '9P/Tempel 1',
-      a: 3.1423,    e: 0.5172,    i: 10.5267,   om: 68.9378,  w: 179.212,   ma: 200.0,  color: 0xbbddee }
+      epoch: 2457470.5, a: 3.14613376, e: 0.50970283, i: 10.47342815, om: 68.75357468, w: 179.19727537, ma: 336.58544386, color: 0xbbddee }  // SBDB sstr=9P
   ];
   layerBuilders['comets'] = function() {
     var out = [];
@@ -1106,7 +1112,7 @@ function initSolarSystem() {
       var c = NAMED_COMETS[i];
       try {
         var eph = new Spacekit.Ephem({
-          epoch: 2451545.0,
+          epoch: c.epoch,
           a: c.a, e: c.e, i: c.i, om: c.om, w: c.w, ma: c.ma
         }, 'deg');
         var obj = viz.createObject(c.id, {
