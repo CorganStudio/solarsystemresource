@@ -612,7 +612,7 @@ html, body {
 
 <!-- ═══ LIBRARIES ═══ -->
 <script src="https://typpo.github.io/spacekit/build/spacekit.js"></script>
-<script src="resource-systems-core.js?v=26"></script>
+<script src="resource-systems-core.js?v=27"></script>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
@@ -710,6 +710,14 @@ function initSolarSystem() {
 
   S.viz = viz;
   window.SSR_viz = viz;
+
+  // fan control: capped resolution, orbits drawn at 30fps while time runs,
+  // a paused sky once a second, nothing in a hidden tab
+  viz.renderer.setPixelRatio(RS.pixelRatio());
+  viz.composer.setSize(container.offsetWidth, container.offsetHeight);
+  var quiet = RS.quietThree({ fps: 30 });
+  var composerRender = viz.composer.render.bind(viz.composer);
+  viz.composer.render = function() { if (quiet.frame(!viz.isPaused)) composerRender.apply(null, arguments); };
 
   // ── LAYER BUILDER: planets ──
   // Each planet gets a labelText (Sun, Mercury, Venus, ...) so users can
